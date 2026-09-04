@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { brand } from "@/lib/brand";
+
 /**
  * Manifesto do PWA — é o que torna o app instalável na tela de início.
  * Servido pelo Next em /manifest.webmanifest.
@@ -23,19 +25,22 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["productivity", "business"],
     icons: [
       {
-        src: "/brand/icon-192.png",
+        src: brand.appIcon192,
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand/icon-512.png",
+        src: brand.appIcon512,
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
+      // Arte própria, com a marca menor: o Android recorta o ícone maskable no
+      // formato do sistema. Reaproveitar o ícone "any" aqui faz o recorte
+      // cortar as bordas do símbolo.
       {
-        src: "/brand/icon-512.png",
+        src: brand.appIconMaskable,
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

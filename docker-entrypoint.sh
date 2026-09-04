@@ -12,7 +12,8 @@ set -e
 echo "[organizai] aplicando migrações..."
 if ! npx prisma migrate deploy; then
   echo "[organizai] ERRO: não foi possível aplicar as migrações."
-  echo "[organizai] Verifique DATABASE_URL e se o volume está montado."
+  echo "[organizai] Verifique a DATABASE_URL e se o PostgreSQL está acessível"
+  echo "[organizai] a partir deste container (host, porta, usuário e senha)."
   exit 1
 fi
 

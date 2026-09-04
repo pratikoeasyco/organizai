@@ -32,8 +32,9 @@ COPY . .
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
-# O build não acessa o banco, mas o Prisma exige a variável presente.
-ENV DATABASE_URL="file:/tmp/build.db"
+# O build não acessa o banco, mas o Prisma exige a variável presente e válida
+# para o provider. Uma URL de faz de conta basta — nada se conecta aqui.
+ENV DATABASE_URL="postgres://build:build@localhost:5432/build"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npx prisma generate
@@ -73,10 +74,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
-# Onde o banco SQLite vive. Precisa ser um volume persistente no Easypanel,
-# senão os dados somem a cada novo deploy.
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
-VOLUME ["/app/data"]
+# Sem volume: o banco é um PostgreSQL externo. O container é descartável e pode
+# ser reconstruído a qualquer momento sem perder dado nenhum.
 
 USER nextjs
 EXPOSE 3000

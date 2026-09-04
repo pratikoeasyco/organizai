@@ -6,34 +6,32 @@ Guia do zero até o Organizaí no ar com HTTPS.
 
 ## Antes de começar
 
-Você vai precisar de três coisas que **ainda não existem** nesta máquina:
+Já estão prontos:
 
-1. **Git instalado** — https://git-scm.com/download/win
-2. **Uma conta no GitHub** (ou GitLab) com um repositório para este projeto
-3. **Um servidor com Easypanel** instalado e um domínio apontado para ele
+- **Git instalado** e o código publicado em
+  https://github.com/pratikoeasyco/organizai (branch `main`)
+- **PostgreSQL** rodando e com o schema aplicado
 
-O Easypanel monta a imagem a partir de um repositório Git. Não há como enviar a
-pasta direto.
+Falta:
+
+- **Um servidor com Easypanel** e um domínio apontado para ele
+
+O Easypanel monta a imagem a partir do repositório Git.
 
 ---
 
-## 1. Colocar o código no GitHub
-
-Depois de instalar o Git, na pasta do projeto:
+## 1. Enviar as alterações
 
 ```powershell
-git init
 git add .
-git commit -m "Organizaí"
-git branch -M main
-git remote add origin https://github.com/SEU-USUARIO/organizai.git
-git push -u origin main
+git commit -m "o que mudou"
+git push
 ```
 
-> O `.gitignore` já exclui `.env`, `node_modules` e os arquivos `.db`. **Nenhuma
-> senha ou chave vai para o repositório** — as chaves ficam só no Easypanel.
+> O `.gitignore` exclui `.env`, `node_modules` e arquivos `.db`. **Nenhuma senha
+> ou chave vai para o repositório** — elas ficam só no Easypanel.
 
-Como o repositório vai conter o código do seu produto, crie-o **privado**.
+O repositório contém o código do seu produto: mantenha-o **privado**.
 
 ---
 
@@ -80,18 +78,33 @@ Na aba **Build Args**, adicione:
 
 ---
 
-## 4. Volume persistente (obrigatório)
+## 4. Banco de dados (PostgreSQL)
 
-**Aba Volumes → Add Volume**
+O banco é um **PostgreSQL externo**, fora do container. Nada de volume: o
+container é descartável e pode ser reconstruído sem perder dado nenhum.
 
-| Campo | Valor |
-| --- | --- |
-| Type | Volume |
-| Name | `organizai-data` |
-| Mount path | `/app/data` |
+O schema é aplicado sozinho ao subir, pelo `migrate deploy`. Você não precisa
+criar tabela nenhuma à mão.
 
-**Sem isso, todos os dados são apagados a cada novo deploy.** O banco é um
-arquivo; se ele ficar dentro do container, some junto com o container.
+### Prefira o host interno
+
+Se o PostgreSQL está no **mesmo servidor Easypanel** que a aplicação, use o
+nome interno do serviço em vez do domínio público:
+
+```env
+# interno — o tráfego não sai da máquina
+DATABASE_URL=postgres://postgres:SENHA@meu-projeto_postgres:5432/site?sslmode=disable
+
+# público — sai para a internet e volta
+DATABASE_URL=postgres://postgres:SENHA@sgcsolutions.com.br:7543/site?sslmode=disable
+```
+
+O host interno é mais rápido e, principalmente, **não trafega a senha pela
+internet**. Este servidor não aceita conexão criptografada (testado: recusa
+SSL), então pelo host público a senha e todos os dados viajam em texto claro.
+Pela rede interna isso deixa de importar.
+
+O nome do host interno aparece no Easypanel, na página do serviço PostgreSQL.
 
 ---
 
@@ -100,7 +113,7 @@ arquivo; se ele ficar dentro do container, some junto com o container.
 **Aba Environment:**
 
 ```env
-DATABASE_URL=file:/app/data/organizai.db
+DATABASE_URL=postgres://postgres:SENHA@HOST:PORTA/site?sslmode=disable
 
 SESSION_COOKIE_NAME=organizai_session
 SESSION_TTL_DAYS=30
@@ -179,15 +192,16 @@ Dois componentes vivem dentro do processo do servidor:
 
 Com duas réplicas, cada uma avisaria apenas os seus próprios conectados, e a
 atualização ao vivo passaria a funcionar pela metade — de forma intermitente,
-que é o pior tipo de defeito para diagnosticar. Além disso o SQLite é um
-arquivo: dois containers escrevendo nele corromperiam o banco.
+que é o pior tipo de defeito para diagnosticar. O agendador, por sua vez,
+dispararia o mesmo lembrete uma vez por réplica.
 
-Para crescer além de uma instância, dois passos, nesta ordem:
-1. trocar o SQLite por PostgreSQL (o schema já é compatível — só muda o
-   `provider` e a `DATABASE_URL`);
-2. trocar o barramento em `src/server/events/bus.ts` por Redis pub/sub, e
-   desligar `ENABLE_REMINDER_SCHEDULER`, apontando um cron externo para
-   `POST /api/notifications/tick` com o cabeçalho `x-cron-secret`.
+O banco já não é obstáculo: o PostgreSQL aguenta várias instâncias sem
+problema. O que falta para escalar:
+
+1. trocar o barramento em `src/server/events/bus.ts` por Redis pub/sub;
+2. desligar `ENABLE_REMINDER_SCHEDULER` e apontar um cron externo para
+   `POST /api/notifications/tick` com o cabeçalho `x-cron-secret`, para o
+   lembrete sair uma vez só.
 
 ---
 
@@ -208,14 +222,20 @@ procura versão nova ao reabrir o app e se atualiza sozinho.
 
 ## Backup
 
-O banco é um arquivo dentro do volume. Para copiá-lo:
+Cópia completa do banco, de qualquer máquina que alcance o PostgreSQL:
 
 ```bash
-docker ps                          # descubra o nome do container
-docker cp <container>:/app/data/organizai.db ./backup-$(date +%F).db
+pg_dump "postgres://postgres:SENHA@HOST:PORTA/site" -Fc -f backup-$(date +%F).dump
 ```
 
-Vale agendar isso no servidor. Hoje não há rotina automática de backup.
+Para restaurar:
+
+```bash
+pg_restore -d "postgres://postgres:SENHA@HOST:PORTA/site" --clean backup-2026-09-04.dump
+```
+
+Vale agendar isso no servidor. **Hoje não há rotina automática de backup** — e
+com dados reais em produção isso deixa de ser detalhe.
 
 ---
 
@@ -229,9 +249,15 @@ acessando por `https://`, não por IP.
 `NEXT_PUBLIC_VAPID_PUBLIC_KEY` não foi informada como **Build Arg**. Corrija e
 reconstrua a imagem — só reiniciar não resolve, a chave entra no build.
 
-**Os dados sumiram depois de um deploy**
-O volume não estava montado em `/app/data`, ou a `DATABASE_URL` não aponta para
-lá. Confira as duas coisas juntas.
+**O container não sobe e o log para em "aplicando migrações"**
+A `DATABASE_URL` está errada ou o PostgreSQL não é alcançável de dentro do
+container. Se você usou o domínio público, tente o **host interno** do serviço
+PostgreSQL no Easypanel. O entrypoint falha de propósito nesse caso: subir com
+o banco inacessível só adiaria o erro para o primeiro usuário.
+
+**Aparece "database ... does not exist"**
+O banco precisa existir antes; o `migrate deploy` cria as *tabelas*, não o
+banco. Crie-o pelo painel do PostgreSQL no Easypanel.
 
 **Lembretes não chegam**
 Verifique `ENABLE_REMINDER_SCHEDULER=true` e `CRON_SECRET` preenchido. Nos logs

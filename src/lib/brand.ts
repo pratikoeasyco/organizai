@@ -39,4 +39,24 @@ export const brand = {
 
   /** Favicon declarado no <head>. */
   favicon: "/brand/favicon.png",
+
+  /**
+   * Ícones do app instalado (PWA). São o mesmo símbolo do favicon, só que
+   * gerados a partir do logo em alta resolução — o favicon tem 48px e ficaria
+   * borrado ao ser ampliado para 512.
+   *
+   * `maskable` é uma arte separada de propósito: o Android recorta o ícone no
+   * formato do sistema (círculo, quadrado arredondado, gota), então a marca
+   * precisa caber numa área segura menor. Usar a mesma imagem nos dois papéis
+   * faz o recorte comer as bordas do símbolo.
+   */
+  appIcon192: "/brand/icon-192.png",
+  appIcon512: "/brand/icon-512.png",
+  appIconMaskable: "/brand/icon-maskable-512.png",
+
+  /**
+   * Ícone da tela de início no iOS. O Safari usa `apple-touch-icon`; sem esta
+   * declaração o iPhone salva uma **captura da página** como ícone do app.
+   */
+  appleIcon: "/brand/apple-icon.png",
 } as const;

@@ -22,7 +22,19 @@ export const metadata: Metadata = {
   // Os arquivos ficam em public/brand/ — trocar a marca é substituir o arquivo,
   // sem mexer aqui. Veja public/README.md.
   icons: {
-    icon: [{ url: brand.favicon, type: "image/png" }],
+    icon: [
+      { url: brand.favicon, type: "image/png", sizes: "48x48" },
+      { url: brand.appIcon192, type: "image/png", sizes: "192x192" },
+      { url: brand.appIcon512, type: "image/png", sizes: "512x512" },
+    ],
+    // Sem isto, o iPhone usa uma captura da página como ícone do app instalado:
+    // o Safari não lê os ícones do manifesto para a tela de início.
+    apple: [{ url: brand.appleIcon, sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Organizaí",
+    statusBarStyle: "default",
   },
 };
 

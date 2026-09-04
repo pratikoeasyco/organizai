@@ -1,13 +1,17 @@
 // Organizaí — modelo de dados
-// Banco relacional interno (SQLite). SQLite não suporta enums no Prisma,
-// portanto os campos "enumerados" são String validados por Zod + tipos em src/types.
+//
+// PostgreSQL. Os campos "enumerados" são String validados por Zod + tipos em
+// src/types — herança do SQLite, que não suporta enums no Prisma. O Postgres
+// suportaria enums nativos, mas mantê-los como String evita uma migração de
+// tipo a cada valor novo (um ALTER TYPE que trava a tabela), e a validação
+// decisiva já acontece no Zod, na fronteira do servidor.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

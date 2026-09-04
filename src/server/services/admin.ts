@@ -114,7 +114,13 @@ export async function listUsers(search?: string): Promise<AdminUserRow[]> {
   const users = await prisma.user.findMany({
     where: term
       ? {
-          OR: [{ name: { contains: term } }, { email: { contains: term } }],
+          // `mode: "insensitive"` é obrigatório no PostgreSQL: sem ele,
+          // procurar por "ana" não acha "Ana". No SQLite o LIKE já ignorava
+          // maiúsculas, então a falta disto passaria despercebida na migração.
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { email: { contains: term, mode: "insensitive" } },
+          ],
         }
       : undefined,
     orderBy: [{ isPlatformAdmin: "desc" }, { createdAt: "asc" }],
@@ -298,7 +304,13 @@ export async function listCompaniesForAdmin(search?: string): Promise<AdminCompa
 
   const companies = await prisma.company.findMany({
     where: term
-      ? { OR: [{ name: { contains: term } }, { slug: { contains: term } }] }
+      ? {
+          // Mesmo motivo do listUsers: busca sem distinguir maiúsculas.
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { slug: { contains: term, mode: "insensitive" } },
+          ],
+        }
       : undefined,
     orderBy: { createdAt: "desc" },
     select: {

@@ -17,10 +17,9 @@ Conta → Empresas → Projetos → Quadro → Colunas → Tarefas
 ## Como rodar
 
 ```bash
-npm install          # instala dependências e gera o Prisma Client
-npm run db:push      # cria o banco interno (SQLite)
-npm run db:seed      # opcional: popula uma conta de demonstração
-npm run dev          # http://localhost:3000
+npm install            # instala dependências e gera o Prisma Client
+npx prisma migrate deploy   # aplica o schema no PostgreSQL da DATABASE_URL
+npm run dev            # http://localhost:3000
 ```
 
 Conta de demonstração criada pelo seed:
@@ -55,14 +54,15 @@ npm run db:migrate-priorities  # migra prioridades antigas (5 níveis) para os 3
 | ------------- | --------------------------------------------------- |
 | Framework     | Next.js 15 (App Router) + React 19 + TypeScript      |
 | Estilo        | Tailwind CSS v4 com design tokens em `@theme`        |
-| Banco         | SQLite (arquivo local) via Prisma 6                  |
+| Banco         | PostgreSQL via Prisma 6                              |
 | Autenticação  | scrypt (`node:crypto`) + sessão opaca em cookie      |
 | Drag and drop | `@dnd-kit`                                           |
 | Validação     | Zod, sempre no servidor                              |
 | Ícones        | lucide-react                                         |
 
-O banco é **interno**: um arquivo `prisma/organizai.db`. Não há serviço externo,
-container ou credencial para configurar.
+O banco é um **PostgreSQL** apontado por `DATABASE_URL` no `.env`. O schema é
+aplicado por migrações versionadas (`prisma/migrations/`), então subir uma
+versão nova nunca depende de rodar comando à mão.
 
 ---
 
