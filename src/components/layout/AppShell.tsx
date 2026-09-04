@@ -16,6 +16,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar, type Crumb } from "@/components/layout/Topbar";
 import { CompanyFormModal } from "@/components/companies/CompanyFormModal";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ProjectFormModal } from "@/components/projects/ProjectFormModal";
 import { useLiveChanges } from "@/hooks/useLiveChanges";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -197,7 +198,7 @@ export function AppShell({ user, companies, projects, children }: AppShellProps)
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 left-0 w-[272px] border-r border-line shadow-pop animate-slide-left">
+          <div className="absolute inset-y-0 left-0 w-[272px] border-r border-line pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-pop animate-slide-left">
             <Sidebar
               {...sidebarProps}
               collapsed={false}
@@ -216,6 +217,8 @@ export function AppShell({ user, companies, projects, children }: AppShellProps)
           {children}
         </main>
       </div>
+
+      <InstallPrompt />
 
       <BottomNav
         items={[

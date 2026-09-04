@@ -153,7 +153,7 @@ export function BoardToolbar({
         )}
       >
         {() => (
-          <div className="max-h-[70vh] overflow-y-auto scrollbar-slim">
+          <div className="max-h-[70dvh] overflow-y-auto scrollbar-slim">
             <p className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               Prioridade
             </p>

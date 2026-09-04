@@ -289,7 +289,10 @@ export function TaskPanel({ taskId, onClose }: TaskPanelProps) {
         role="dialog"
         aria-modal="true"
         aria-label={detail?.title ?? "Detalhes da tarefa"}
-        className="relative flex h-full w-full max-w-[560px] flex-col border-l border-line bg-surface shadow-pop animate-slide-left"
+        // No celular ocupa a tela inteira, então precisa recuar do relógio (topo)
+        // e do indicador de início (base) — senão o cabeçalho e o último campo
+        // ficam por baixo deles.
+        className="relative flex h-full w-full max-w-[560px] flex-col border-l border-line bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-pop animate-slide-left"
       >
         {/* Cabeçalho */}
         <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">

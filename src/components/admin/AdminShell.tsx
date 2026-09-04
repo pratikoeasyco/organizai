@@ -68,7 +68,7 @@ export function AdminShell({
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 left-0 w-[272px] border-r border-line shadow-pop animate-slide-left">
+          <div className="absolute inset-y-0 left-0 w-[272px] border-r border-line pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-pop animate-slide-left">
             <AdminSidebar
               user={user}
               collapsed={false}

@@ -101,7 +101,17 @@ export function Modal({
   if (!mounted || !open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-100 flex items-end justify-center p-0 sm:items-center sm:p-6">
+    // Centralizado em todo tamanho de tela, com margem em volta. Antes era uma
+    // "folha" colada na base no celular, encostando nas bordas — e no iPhone o
+    // rodapé de botões ficava por baixo do indicador de início.
+    // `max(...)` garante a margem mínima mesmo em aparelho sem entalhe.
+    <div
+      className={cn(
+        "fixed inset-0 z-100 flex items-center justify-center",
+        "px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]",
+        "sm:px-6",
+      )}
+    >
       <div
         className="absolute inset-0 bg-slate-900/25 backdrop-blur-[2px] animate-fade-in"
         onClick={() => !busy && onClose()}
@@ -114,9 +124,12 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative w-full bg-surface shadow-pop animate-slide-up",
-          "max-h-[92vh] overflow-y-auto scrollbar-slim",
-          "rounded-t-2xl sm:rounded-xl",
+          "relative w-full bg-surface shadow-pop animate-scale-in",
+          // `dvh` e não `vh`: no Safari do iPhone a barra do navegador aparece e
+          // some, e `100vh` ignora isso — o modal ficava mais alto que a tela e
+          // os botões do rodapé saíam para fora.
+          "max-h-[calc(100dvh-2rem)] overflow-y-auto scrollbar-slim",
+          "rounded-2xl",
           SIZES[size],
         )}
       >
@@ -144,7 +157,11 @@ export function Modal({
         <div className="px-5 py-5 sm:px-6">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-muted px-5 py-3.5 sm:px-6">
+          // No celular os botões ocupam a largura toda e empilham, com a ação
+          // principal em cima — alvo de toque maior e ordem que o polegar
+          // encontra primeiro. `col-reverse` inverte a ordem visual, então o
+          // último botão do código (o principal) sobe.
+          <div className="flex flex-col-reverse gap-2 border-t border-line bg-surface-muted px-5 py-3.5 sm:flex-row sm:items-center sm:justify-end sm:px-6 [&>*]:w-full sm:[&>*]:w-auto">
             {footer}
           </div>
         )}
