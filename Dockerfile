@@ -41,6 +41,24 @@ RUN npx prisma generate
 RUN npm run build
 
 
+# --- CLI do Prisma ----------------------------------------------------------
+# O `migrate deploy` roda ao subir o container, então o CLI precisa estar na
+# imagem final — e com as dependências dele.
+#
+# Copiar apenas `node_modules/prisma` do build NÃO basta: o CLI carrega
+# `@prisma/config`, que exige `effect` e mais uma dúzia de pacotes instalados na
+# raiz do node_modules. Faltando qualquer um, o container falha ao subir com
+# "Cannot find module 'effect'".
+#
+# Instalar o CLI sozinho aqui traz a árvore inteira dele e nada mais, sem
+# arrastar as dependências de desenvolvimento do projeto para a imagem.
+FROM base AS prismacli
+WORKDIR /cli
+ARG PRISMA_VERSION=6.19.3
+RUN npm init -y > /dev/null \
+ && npm install prisma@${PRISMA_VERSION} --omit=dev --no-audit --no-fund
+
+
 # --- Execução ---------------------------------------------------------------
 FROM base AS runner
 WORKDIR /app
@@ -59,17 +77,21 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Prisma: schema, migrações e o CLI, para aplicar o schema ao subir.
+# Schema e migrações, lidos pelo CLI ao subir.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # O script que cria o administrador importa a função de hash do código-fonte.
 # Copiar só este arquivo evita duplicar a lógica de senha em dois lugares, que
 # um dia divergiriam.
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/auth/password.ts ./src/lib/auth/password.ts
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+
+# Prisma Client gerado, usado pela aplicação e pelo script do administrador.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+
+# CLI do Prisma, em diretório próprio para não colidir com o node_modules da
+# aplicação. Só o entrypoint o utiliza, para aplicar as migrações.
+COPY --from=prismacli --chown=nextjs:nodejs /cli/node_modules ./prisma-cli/node_modules
 
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh

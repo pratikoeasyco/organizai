@@ -9,8 +9,13 @@ set -e
 # usamos em desenvolvimento, pode descartar coluna sem avisar.
 # ---------------------------------------------------------------------------
 
+# Caminho direto para o CLI instalado no estágio `prismacli` do Dockerfile.
+# `npx prisma` não serve aqui: procuraria o pacote no node_modules da aplicação,
+# que contém apenas o Prisma Client gerado — não o CLI nem as dependências dele.
+PRISMA_CLI="/app/prisma-cli/node_modules/prisma/build/index.js"
+
 echo "[organizai] aplicando migrações..."
-if ! npx prisma migrate deploy; then
+if ! node "$PRISMA_CLI" migrate deploy --schema=/app/prisma/schema.prisma; then
   echo "[organizai] ERRO: não foi possível aplicar as migrações."
   echo "[organizai] Verifique a DATABASE_URL e se o PostgreSQL está acessível"
   echo "[organizai] a partir deste container (host, porta, usuário e senha)."

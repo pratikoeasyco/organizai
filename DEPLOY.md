@@ -255,6 +255,12 @@ container. Se você usou o domínio público, tente o **host interno** do servi�
 PostgreSQL no Easypanel. O entrypoint falha de propósito nesse caso: subir com
 o banco inacessível só adiaria o erro para o primeiro usuário.
 
+**"Cannot find module 'effect'" ao aplicar as migrações**
+Faltava o CLI do Prisma completo na imagem. Já corrigido: o Dockerfile monta o
+CLI num estágio próprio (`prismacli`), com todas as dependências dele. Se
+reaparecer, confirme que o build está usando o Dockerfile atual do repositório
+e reconstrua **sem cache**.
+
 **Aparece "database ... does not exist"**
 O banco precisa existir antes; o `migrate deploy` cria as *tabelas*, não o
 banco. Crie-o pelo painel do PostgreSQL no Easypanel.
