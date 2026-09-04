@@ -22,6 +22,12 @@ export interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  /**
+   * Nome acessível quando o modal não tem `title` — caso de diálogos que
+   * desenham o próprio cabeçalho. Sem isto o leitor de tela anuncia apenas
+   * "diálogo", sem dizer do quê.
+   */
+  ariaLabel?: string;
   description?: string;
   size?: ModalSize;
   children: ReactNode;
@@ -34,6 +40,7 @@ export function Modal({
   open,
   onClose,
   title,
+  ariaLabel,
   description,
   size = "md",
   children,
@@ -122,7 +129,7 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={title ?? ariaLabel}
         className={cn(
           "relative w-full bg-surface shadow-pop animate-scale-in",
           // `dvh` e não `vh`: no Safari do iPhone a barra do navegador aparece e
