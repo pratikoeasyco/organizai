@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+npm-debug.log*
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Segredos. O .env tem a chave privada de push e o CRON_SECRET — não pode ir
+# para o repositório em hipótese alguma. O .env.example, sim: serve de modelo,
+# e não contém valor nenhum.
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+
+# Banco de dados e backups
+prisma/*.db
+prisma/*.db-journal
+prisma/backup-*.db

@@ -1,0 +1,2 @@
+# Não edite à mão. Registra o banco para o qual as migrações foram geradas.
+provider = "sqlite"

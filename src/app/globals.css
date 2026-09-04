@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Organizaí — Design System
+   White + Royal Blue + Slate. Tema claro, minimalista, muito espaço em branco.
+   ========================================================================== */
+
+@theme {
+  /* --- Cores de marca --- */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+
+  /* --- Superfícies e texto (tokens semânticos) --- */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-surface-sunken: #f1f5f9;
+  --color-line: #e5e7eb;
+  --color-line-strong: #d7dce4;
+  --color-ink: #111827;
+  --color-ink-soft: #475569;
+  --color-ink-muted: #64748b;
+  --color-ink-faint: #94a3b8;
+
+  /* --- Estados --- */
+  --color-positive: #059669;
+  --color-positive-soft: #ecfdf5;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+
+  /* --- Raios --- */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+
+  /* --- Sombras extremamente discretas --- */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 1px 3px 0 rgb(15 23 42 / 0.05);
+  --shadow-md: 0 2px 4px -1px rgb(15 23 42 / 0.05), 0 4px 12px -2px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 8px 24px -6px rgb(15 23 42 / 0.12), 0 2px 6px -2px rgb(15 23 42 / 0.06);
+  --shadow-pop: 0 12px 32px -8px rgb(15 23 42 / 0.18), 0 2px 8px -2px rgb(15 23 42 / 0.08);
+
+  /* --- Tipografia --- */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* --- Animações --- */
+  --animate-fade-in: fade-in 140ms ease-out;
+  --animate-scale-in: scale-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-up: slide-up 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-left: slide-left 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-left {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-surface-muted);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Focus visível e consistente em toda a aplicação */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  ::selection {
+    background-color: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  input, textarea, select, button {
+    font: inherit;
+  }
+
+  /*
+   * O Tailwind v4 deixou de aplicar `cursor: pointer` em botões — era padrão na
+   * v3. Sem isso, metade da interface parece não clicável, já que só os <a>
+   * herdam a mãozinha do navegador. Devolvemos aqui, na base, para valer em
+   * toda a plataforma: se responde a clique, o cursor tem de dizer isso.
+   *
+   * Componentes que precisam de outro cursor (arrastar um card, por exemplo)
+   * usam classes utilitárias, que têm precedência sobre esta camada.
+   */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  [role="menuitem"]:not(:disabled),
+  [role="tab"]:not(:disabled),
+  [role="radio"]:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="date"]:not(:disabled),
+  input[type="time"]:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+  }
+
+  /* Desabilitado também comunica: o cursor mostra que não adianta clicar. */
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  textarea:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Remove spinners de number inputs */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utilitários próprios
+   -------------------------------------------------------------------------- */
+
+@utility scrollbar-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-line-strong);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-ink-faint);
+  }
+}
+
+/* Esconde a barra mas mantém o scroll (usado no board mobile) */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* Cartão base do produto */
+@utility card-surface {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Grid de fundo sutil das telas de autenticação */
+@utility auth-grid {
+  background-image:
+    linear-gradient(to right, rgb(226 232 240 / 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(226 232 240 / 0.55) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+}
+
+/* --------------------------------------------------------------------------
+   Drag and drop
+   -------------------------------------------------------------------------- */
+
+.dnd-dragging-cursor,
+.dnd-dragging-cursor * {
+  cursor: grabbing !important;
+}
+
+/* Enquanto arrasta, evita seleção acidental de texto */
+.dnd-dragging-cursor {
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

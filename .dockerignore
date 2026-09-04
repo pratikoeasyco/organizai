@@ -1,0 +1,22 @@
+# Nunca entram na imagem
+node_modules
+.next
+.git
+.env
+.env.local
+.env.*.local
+
+# Banco de desenvolvimento e backups — em produção o banco vem do volume
+prisma/*.db
+prisma/*.db-journal
+prisma/backup-*.db
+
+# Ruído
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+tsconfig.tsbuildinfo
+README.md

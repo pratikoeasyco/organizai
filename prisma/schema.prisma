@@ -1,0 +1,412 @@
+// Organizaí — modelo de dados
+// Banco relacional interno (SQLite). SQLite não suporta enums no Prisma,
+// portanto os campos "enumerados" são String validados por Zod + tipos em src/types.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Conta e sessão
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarColor  String   @default("#2563EB")
+  jobTitle     String?
+  // Administrador DA PLATAFORMA — não confundir com o papel "ADMIN" de
+  // CompanyMember, que vale só dentro de uma empresa. Este dá acesso ao painel
+  // /admin, que enxerga todas as contas e empresas.
+  isPlatformAdmin Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions       Session[]
+  resetTokens    PasswordResetToken[]
+  memberships    CompanyMember[]
+  projectAccess  ProjectMember[]
+  pushSubscriptions PushSubscription[]
+  mutedProjects  ProjectMute[]
+  notifications  Notification[]
+  ownedCompanies Company[]            @relation("CompanyOwner")
+  createdProjects Project[]           @relation("ProjectCreator")
+  createdTasks   Task[]               @relation("TaskCreator")
+  assignedTasks  Task[]               @relation("TaskAssignee")
+  movedTasks     Task[]               @relation("TaskMover")
+  comments       TaskComment[]
+  attachments    TaskAttachment[]
+  activities     Activity[]
+  recentProjects RecentProject[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Empresas e membros
+// ---------------------------------------------------------------------------
+
+model Company {
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  color      String    @default("#2563EB")
+  logoEmoji  String?
+  ownerId    String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  owner      User            @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members    CompanyMember[]
+  projects   Project[]
+  activities Activity[]
+
+  @@index([ownerId])
+}
+
+/**
+ * Acesso a um projeto específico.
+ *
+ * Regra de acesso a projeto:
+ *  - OWNER/ADMIN da empresa  -> acessa todos os projetos, sem precisar de linha aqui
+ *  - MEMBER/VIEWER da empresa -> acessa apenas os projetos onde existe esta linha
+ *
+ * role aqui: ADMIN | MEMBER | VIEWER (o papel dentro daquele projeto).
+ */
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// role: OWNER | ADMIN | MEMBER | VIEWER
+model CompanyMember {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Projetos e quadro
+// ---------------------------------------------------------------------------
+
+model Project {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  color       String    @default("#2563EB")
+  icon        String?
+  position    Int       @default(0)
+  archivedAt  DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User            @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  columns   BoardColumn[]
+  tasks     Task[]
+  labels    Label[]
+  members   ProjectMember[]
+  mutes     ProjectMute[]
+  notifications Notification[]
+  activities Activity[]
+  recentFor RecentProject[]
+
+  @@index([companyId])
+}
+
+model BoardColumn {
+  id         String    @id @default(cuid())
+  projectId  String
+  name       String
+  color      String    @default("#94A3B8")
+  position   Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId])
+}
+
+// priority: LOW | MEDIUM | URGENT
+// kind: TASK (vive no quadro) | EVENT (vive no calendário)
+//
+// Quadro e calendário são conjuntos separados: uma tarefa nunca aparece no
+// calendário e um compromisso nunca aparece no quadro. Compartilham a mesma
+// tabela porque compartilham tudo o que importa — responsável, descrição,
+// etiquetas, checklist (pauta) e comentários (ata) — mas `columnId` é null
+// para EVENT, o que os torna estruturalmente independentes do quadro.
+model Task {
+  id          String    @id @default(cuid())
+  projectId   String
+  kind        String    @default("TASK")
+  columnId    String?
+  title       String
+  description String?
+  priority    String    @default("LOW")
+  // dueDate guarda data e hora. `hasTime` distingue um compromisso marcado
+  // ("12/09 às 14h", que ocupa uma faixa no calendário) de um prazo do dia
+  // inteiro ("entregar até 12/09").
+  dueDate         DateTime?
+  hasTime         Boolean   @default(false)
+  durationMinutes Int?
+  // Minutos de antecedência do lembrete. null = não lembrar.
+  // Só faz sentido com hasTime: sem horário não há de quando contar.
+  reminderMinutes Int?
+  // Carimbos de "já avisei", para o agendador não repetir a cada tique.
+  reminderSentAt  DateTime?
+  startNotifiedAt DateTime?
+  position    Int       @default(0)
+  assigneeId  String?
+  createdById String
+  archivedAt  DateTime?
+  // Conclusão explícita, usada pelos compromissos do calendário. No quadro a
+  // conclusão continua sendo posicional (estar na última coluna).
+  completedAt DateTime?
+  // Quem moveu o card por último, desnormalizado para o quadro exibir sem
+  // precisar consultar o histórico a cada card.
+  lastMovedById String?
+  lastMovedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  column      BoardColumn?     @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assignee    User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy   User             @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  lastMovedBy User?            @relation("TaskMover", fields: [lastMovedById], references: [id], onDelete: SetNull)
+  labels      TaskLabel[]
+  checklist   ChecklistItem[]
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+  activities  Activity[]
+  notifications Notification[]
+
+  @@index([projectId, kind])
+  @@index([kind, dueDate])
+  @@index([columnId])
+  @@index([assigneeId])
+}
+
+model Label {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  color     String   @default("#2563EB")
+  createdAt DateTime @default(now())
+
+  project Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   TaskLabel[]
+
+  @@index([projectId])
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@index([labelId])
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  taskId    String
+  content   String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskAttachment {
+  id           String   @id @default(cuid())
+  taskId       String
+  name         String
+  url          String
+  mimeType     String?
+  size         Int?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+// ---------------------------------------------------------------------------
+// Histórico e navegação
+// ---------------------------------------------------------------------------
+
+// type: company.created | project.created | task.created | task.moved | ...
+model Activity {
+  id        String   @id @default(cuid())
+  companyId String
+  projectId String?
+  taskId    String?
+  actorId   String
+  type      String
+  message   String
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor   User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([projectId])
+}
+
+// ---------------------------------------------------------------------------
+// Notificações
+// ---------------------------------------------------------------------------
+
+/**
+ * Um navegador inscrito para receber push. Uma pessoa pode ter várias — celular,
+ * desktop, cada perfil do navegador. O endpoint é único por inscrição.
+ */
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/**
+ * Silenciar um projeto para UMA pessoa. A existência da linha já é o silêncio.
+ * Vale só para quem criou: os demais continuam recebendo normalmente.
+ */
+model ProjectMute {
+  userId    String
+  projectId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, projectId])
+  @@index([projectId])
+}
+
+/**
+ * Registro do que foi notificado. Serve de caixa de entrada no app e permite
+ * verificar o comportamento do sistema sem depender de um push real chegar.
+ *
+ * type: task.moved | event.reminder | event.start | task.assigned
+ */
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  projectId String?
+  taskId    String?
+  type      String
+  title     String
+  body      String
+  url       String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+model RecentProject {
+  userId    String
+  projectId String
+  visitedAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, projectId])
+  @@index([userId, visitedAt])
+}

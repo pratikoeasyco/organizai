@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version; npm --version; \\(Get-Command git\\).Source)",
+      "PowerShell(npm ping --registry https://registry.npmjs.org 2>$null; Write-Output \"exit=$LASTEXITCODE\")"
+    ]
+  }
+}
