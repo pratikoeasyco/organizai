@@ -29,11 +29,29 @@ function detectarIOS() {
   return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
 }
 
-/** No iPhone só o Safari consegue instalar — Chrome e Firefox lá não instalam. */
-function ehSafari() {
-  if (typeof navigator === "undefined") return false;
-  return !/crios|fxios|edgios|opios/i.test(navigator.userAgent);
+/**
+ * Qual navegador do iPhone, para explicar onde fica o botão de compartilhar.
+ *
+ * Instalar não é mais exclusividade do Safari: desde o iOS 16.4 o Chrome, o
+ * Edge e o Firefox também adicionam à tela de início, e o app resultante roda
+ * no mesmo motor e abre em tela cheia do mesmo jeito. O que muda entre eles é
+ * só onde o menu fica — e é exatamente isso que trava quem tenta.
+ */
+function navegadorIOS(): "chrome" | "firefox" | "edge" | "safari" {
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  if (/crios/i.test(ua)) return "chrome";
+  if (/fxios/i.test(ua)) return "firefox";
+  if (/edgios/i.test(ua)) return "edge";
+  return "safari";
 }
+
+/** Onde fica o "Compartilhar" em cada navegador do iPhone. */
+const CAMINHO_IOS: Record<ReturnType<typeof navegadorIOS>, string> = {
+  safari: "no ícone de compartilhar, na barra de baixo",
+  chrome: "no menu ⋯ (três pontos) e depois em Compartilhar",
+  edge: "no menu ⋯ (três pontos) e depois em Compartilhar",
+  firefox: "no menu ⋯ (três pontos) e depois em Compartilhar",
+};
 
 /**
  * Convida a instalar o app, porque instalado é a única forma de ele abrir em
@@ -42,13 +60,15 @@ function ehSafari() {
  * São dois caminhos bem diferentes:
  *  - Android/desktop: o navegador entrega um evento e nós disparamos a
  *    instalação com um toque.
- *  - iPhone: a Apple não oferece esse evento. A instalação é manual, por um
- *    menu que ninguém encontra sozinho — então explicamos onde fica.
+ *  - iPhone: a Apple não oferece esse evento em navegador nenhum, nem no
+ *    Safari. A instalação é manual, por um menu que muda de lugar conforme o
+ *    navegador — então dizemos exatamente onde ele fica naquele aparelho.
  */
 export function InstallPrompt() {
   const [evento, setEvento] = useState<BeforeInstallPromptEvent | null>(null);
   const [visivel, setVisivel] = useState(false);
   const [ios, setIos] = useState(false);
+  const [ondeCompartilhar, setOndeCompartilhar] = useState("");
 
   useEffect(() => {
     if (estaInstalado()) return;
@@ -58,8 +78,11 @@ export function InstallPrompt() {
     setIos(noIOS);
 
     if (noIOS) {
-      // Sem evento para esperar: ou dá para instalar pelo Safari, ou nem isso.
-      if (ehSafari()) setVisivel(true);
+      // No iOS não existe evento de instalação para esperar, em navegador
+      // nenhum: a Apple não implementa `beforeinstallprompt`. O caminho é
+      // sempre manual, então mostramos a instrução direto.
+      setOndeCompartilhar(CAMINHO_IOS[navegadorIOS()]);
+      setVisivel(true);
       return;
     }
 
@@ -120,13 +143,12 @@ export function InstallPrompt() {
           {ios ? (
             <>
               <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
-                Abre em tela cheia, sem a barra do Safari — e é o único jeito de
-                receber notificações no iPhone.
+                Abre em tela cheia, sem a barra do navegador — e é o único jeito
+                de receber notificações no iPhone.
               </p>
               <p className="mt-2 flex flex-wrap items-center gap-1 text-[12.5px] leading-relaxed text-ink-soft">
-                Toque em
+                Toque {ondeCompartilhar}
                 <Share className="inline size-3.5 shrink-0 text-brand-600" aria-hidden="true" />
-                <span className="font-medium">Compartilhar</span>
                 <span aria-hidden="true">→</span>
                 <SquarePlus className="inline size-3.5 shrink-0 text-brand-600" aria-hidden="true" />
                 <span className="font-medium">Adicionar à Tela de Início</span>
