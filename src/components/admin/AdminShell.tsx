@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { ArrowLeft, Building2, MoreHorizontal, ShieldCheck, Users } from "lucide-react";
+
 import { cn } from "@/lib/utils/cn";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { Topbar, type Crumb } from "@/components/layout/Topbar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
@@ -77,9 +80,46 @@ export function AdminShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar crumbs={crumbs} onOpenMenu={() => setDrawerOpen(true)} />
-        <main className="min-w-0 flex-1">{children}</main>
+        <Topbar crumbs={crumbs} />
+        <main className="min-w-0 flex-1 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {children}
+        </main>
       </div>
+
+      <BottomNav
+        items={[
+          {
+            label: "Painel",
+            icon: <ShieldCheck />,
+            href: "/admin",
+            active: pathname === "/admin",
+          },
+          {
+            label: "Usuários",
+            icon: <Users />,
+            href: "/admin/usuarios",
+            active: pathname.startsWith("/admin/usuarios"),
+          },
+          {
+            label: "Empresas",
+            icon: <Building2 />,
+            href: "/admin/empresas",
+            active: pathname.startsWith("/admin/empresas"),
+          },
+          {
+            label: "Voltar",
+            icon: <ArrowLeft />,
+            href: "/dashboard",
+            active: false,
+          },
+          {
+            label: "Mais",
+            icon: <MoreHorizontal />,
+            onClick: () => setDrawerOpen(true),
+            active: drawerOpen,
+          },
+        ]}
+      />
     </div>
   );
 }

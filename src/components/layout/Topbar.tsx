@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Menu } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils/cn";
 import { LogoMark } from "@/components/brand/Logo";
@@ -14,22 +14,16 @@ export interface Crumb {
 
 export interface TopbarProps {
   crumbs: Crumb[];
-  onOpenMenu: () => void;
   right?: React.ReactNode;
 }
 
-export function Topbar({ crumbs, onOpenMenu, right }: TopbarProps) {
+export function Topbar({ crumbs, right }: TopbarProps) {
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur-md sm:px-6">
-      <button
-        type="button"
-        onClick={onOpenMenu}
-        aria-label="Abrir menu"
-        className="-ml-1 rounded-md p-2 text-ink-soft transition-colors hover:bg-surface-sunken lg:hidden"
-      >
-        <Menu className="size-5" />
-      </button>
-
+    // `top-0` + a área segura: em tela cheia no iPhone o topo fica sob o
+    // relógio e a bateria se não recuarmos.
+    <header className="sticky top-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-3 border-b border-line bg-surface/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-6">
+      {/* Sem botão de menu: no celular quem abre o menu completo é o "Mais" da
+          barra inferior. Duas portas para a mesma gaveta só confundem. */}
       <LogoMark className="size-6 lg:hidden" />
 
       <nav aria-label="Trilha de navegação" className="min-w-0 flex-1">

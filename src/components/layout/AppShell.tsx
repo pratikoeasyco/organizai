@@ -2,8 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  Building2,
+  FolderKanban,
+  LayoutDashboard,
+  MoreHorizontal,
+  User as UserIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils/cn";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar, type Crumb } from "@/components/layout/Topbar";
 import { CompanyFormModal } from "@/components/companies/CompanyFormModal";
@@ -201,13 +209,50 @@ export function AppShell({ user, companies, projects, children }: AppShellProps)
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar
-          crumbs={crumbs}
-          onOpenMenu={() => setDrawerOpen(true)}
-          right={<NotificationBell />}
-        />
-        <main className="min-w-0 flex-1">{children}</main>
+        <Topbar crumbs={crumbs} right={<NotificationBell />} />
+        {/* No celular a barra inferior é fixa e cobriria o fim do conteúdo:
+            56px da barra + a faixa do indicador de início do iPhone. */}
+        <main className="min-w-0 flex-1 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {children}
+        </main>
       </div>
+
+      <BottomNav
+        items={[
+          {
+            label: "Início",
+            icon: <LayoutDashboard />,
+            href: "/dashboard",
+            active: pathname === "/dashboard",
+          },
+          {
+            label: "Empresas",
+            icon: <Building2 />,
+            href: "/empresas",
+            active: pathname === "/empresas",
+          },
+          {
+            label: "Projetos",
+            icon: <FolderKanban />,
+            // Sem empresa ativa não há projeto que faça sentido abrir; a lista
+            // de empresas é o passo anterior natural.
+            href: activeCompany ? `/empresas/${activeCompany.slug}` : "/empresas",
+            active: pathname.startsWith("/projetos") || /^\/empresas\/[^/]+$/.test(pathname),
+          },
+          {
+            label: "Perfil",
+            icon: <UserIcon />,
+            href: "/perfil",
+            active: pathname === "/perfil",
+          },
+          {
+            label: "Mais",
+            icon: <MoreHorizontal />,
+            onClick: () => setDrawerOpen(true),
+            active: drawerOpen,
+          },
+        ]}
+      />
 
       <CompanyFormModal open={companyModal} onClose={() => setCompanyModal(false)} />
       {activeCompany && (

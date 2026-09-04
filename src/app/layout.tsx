@@ -36,12 +36,24 @@ export const metadata: Metadata = {
     title: "Organizaí",
     statusBarStyle: "default",
   },
+  other: {
+    // O Next 15 traduz `appleWebApp.capable` para <meta name="mobile-web-app-capable">,
+    // que é o nome padronizado — mas o Safari do iPhone só obedece à versão com
+    // prefixo. Sem esta linha, o app instalado na tela de início abre COM a
+    // barra do Safari, parecendo site em vez de aplicativo.
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
+  // Ocupa a tela inteira sob o entalhe e o indicador de início do iPhone. Quem
+  // encosta nessas bordas (a barra inferior) compensa com env(safe-area-inset-*).
+  viewportFit: "cover",
+  // Sem `maximumScale`: travar o zoom deixaria o app inutilizável para quem
+  // enxerga pouco, e o que se ganharia é apenas cosmético.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
