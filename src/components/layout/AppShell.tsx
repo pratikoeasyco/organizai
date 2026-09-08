@@ -16,6 +16,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar, type Crumb } from "@/components/layout/Topbar";
 import { CompanyFormModal } from "@/components/companies/CompanyFormModal";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { NotificationPrompt } from "@/components/pwa/NotificationPrompt";
 import { ProjectFormModal } from "@/components/projects/ProjectFormModal";
@@ -211,7 +212,15 @@ export function AppShell({ user, companies, projects, children }: AppShellProps)
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar crumbs={crumbs} right={<NotificationBell />} />
+        <Topbar
+          crumbs={crumbs}
+          right={
+            <>
+              <GlobalSearch />
+              <NotificationBell />
+            </>
+          }
+        />
         {/* No celular a barra inferior é fixa e cobriria o fim do conteúdo:
             56px da barra + a faixa do indicador de início do iPhone. */}
         <main className="min-w-0 flex-1 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
