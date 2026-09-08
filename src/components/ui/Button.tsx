@@ -75,7 +75,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ) : (
         leftIcon
       )}
-      {!isIconOnly && children}
+      {/* Os filhos sempre entram. Antes eram descartados quando o tamanho era
+          `icon`/`icon-sm`, e como TODO botão de ícone do app passa o ícone como
+          filho, eles renderizavam vazios: o X de fechar, as setas do
+          calendário, a lixeira. O botão continuava clicável, então parecia que
+          o ícone estava "branco". */}
+      {children}
       {!loading && !isIconOnly && rightIcon}
     </button>
   );

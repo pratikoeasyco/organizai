@@ -14,7 +14,8 @@ import { TaskPanel } from "@/components/kanban/TaskPanel";
 import { AddColumnButton } from "@/components/kanban/AddColumnButton";
 import { CreateTaskModal } from "@/components/kanban/CreateTaskModal";
 import {
-  BoardToolbar,
+  BoardFiltersButton,
+  BoardSearch,
   EMPTY_FILTERS,
   type BoardFilters,
 } from "@/components/kanban/BoardToolbar";
@@ -102,8 +103,8 @@ export function BoardScreen() {
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] flex-col">
       {/* Cabeçalho do projeto */}
-      <div className="shrink-0 border-b border-line bg-surface px-5 py-4 sm:px-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="shrink-0 border-b border-line bg-surface px-4 py-2.5 sm:px-6 sm:py-4">
+        <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <span
               aria-hidden="true"
@@ -111,13 +112,13 @@ export function BoardScreen() {
                 backgroundColor: withAlpha(board.project.color, 0.12),
                 color: board.project.color,
               }}
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[16px]"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[15px] sm:size-9 sm:text-[16px]"
             >
               {board.project.icon ?? <LayoutGrid className="size-4.5" />}
             </span>
 
             <div className="min-w-0">
-              <h1 className="flex items-center gap-2 text-[18px] font-semibold tracking-tight text-ink">
+              <h1 className="flex items-center gap-2 text-[16px] font-semibold tracking-tight text-ink sm:text-[18px]">
                 <span className="truncate">{board.project.name}</span>
                 {canEditProject && (
                   <button
@@ -130,7 +131,15 @@ export function BoardScreen() {
                   </button>
                 )}
               </h1>
-              <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
+              {/* No celular a trilha do topo já mostra empresa e projeto;
+                  repetir aqui só consome altura que o quadro precisa. A
+                  descrição do projeto, quando existe, continua valendo. */}
+              <p
+                className={cn(
+                  "mt-0.5 truncate text-[12.5px] text-ink-muted",
+                  !board.project.description && "hidden sm:block",
+                )}
+              >
                 {board.project.description ||
                   `${board.project.companyName} · ${ROLE_LABEL[board.role]}`}
               </p>
@@ -167,16 +176,24 @@ export function BoardScreen() {
               })}
             </div>
 
-            <BoardToolbar
-              filters={filters}
-              onChange={setFilters}
-              members={board.members}
-              labels={board.labels}
-              resultCount={visibleTasks}
-              totalCount={totalTasks}
-            />
+            {/* No celular tudo cabe na mesma linha das abas, à direita: a
+                busca vira lupa e o filtro vira funil. */}
+            <div className="ml-auto flex items-center gap-2 sm:ml-0">
+              <BoardSearch
+                filters={filters}
+                onChange={setFilters}
+                resultCount={visibleTasks}
+                totalCount={totalTasks}
+              />
+              <BoardFiltersButton
+                filters={filters}
+                onChange={setFilters}
+                members={board.members}
+                labels={board.labels}
+              />
+            </div>
 
-            <div className="ml-auto flex items-center gap-2 border-l border-line pl-3">
+            <div className="flex items-center gap-2 sm:ml-auto sm:border-l sm:border-line sm:pl-3">
               <ProjectMuteToggle projectId={board.project.id} initialMuted={board.muted} />
               <span
                 className="hidden items-center gap-2 lg:flex"

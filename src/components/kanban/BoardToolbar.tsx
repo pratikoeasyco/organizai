@@ -76,24 +76,24 @@ function CheckRow({
   );
 }
 
-export interface BoardToolbarProps {
+export interface BoardSearchProps {
   filters: BoardFilters;
   onChange: (filters: BoardFilters) => void;
-  members: BoardUser[];
-  labels: BoardLabel[];
   resultCount: number;
   totalCount: number;
 }
 
-export function BoardToolbar({
-  filters,
-  onChange,
-  members,
-  labels,
-  resultCount,
-  totalCount,
-}: BoardToolbarProps) {
+/**
+ * Pesquisa dentro do quadro aberto.
+ *
+ * No celular fica recolhida atrás de uma lupa. Um campo de texto sempre
+ * visível comia uma linha inteira do cabeçalho — e o cabeçalho disputa altura
+ * com o quadro, que é o que a pessoa veio ver. Aberta, ocupa a largura toda,
+ * porque digitar em campo estreito no telefone é ruim.
+ */
+export function BoardSearch({ filters, onChange, resultCount, totalCount }: BoardSearchProps) {
   const [queryDraft, setQueryDraft] = useState(filters.query);
+  const [aberta, setAberta] = useState(false);
   const activeCount = countActiveFilters(filters);
 
   // Debounce da pesquisa: evita refiltrar a cada tecla.
@@ -111,41 +111,108 @@ export function BoardToolbar({
   }, [filters.query]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Input
-        value={queryDraft}
-        onChange={(event) => setQueryDraft(event.target.value)}
-        placeholder="Pesquisar tarefas..."
+    <>
+      {/* Atalho só do celular. No desktop o campo já está sempre à vista. */}
+      <Button
+        variant={filters.query ? "subtle" : "secondary"}
+        size="icon"
+        onClick={() => setAberta((valor) => !valor)}
         aria-label="Pesquisar tarefas"
-        leftIcon={<Search />}
-        wrapClassName="w-full sm:w-60"
-        rightSlot={
-          queryDraft ? (
-            <button
-              type="button"
-              onClick={() => setQueryDraft("")}
-              aria-label="Limpar pesquisa"
-              className="rounded-sm p-1.5 text-ink-faint transition-colors hover:bg-surface-sunken hover:text-ink-soft"
-            >
-              <X className="size-3.5" />
-            </button>
-          ) : undefined
-        }
-      />
+        aria-expanded={aberta}
+        className="sm:hidden"
+      >
+        <Search className="size-4" />
+      </Button>
 
-      <Dropdown
-        width={248}
+      <div
+        className={cn(
+          "order-last w-full sm:order-none sm:block sm:w-60",
+          aberta ? "block" : "hidden",
+        )}
+      >
+        <Input
+          value={queryDraft}
+          onChange={(event) => setQueryDraft(event.target.value)}
+          placeholder="Pesquisar tarefas..."
+          aria-label="Pesquisar tarefas"
+          leftIcon={<Search />}
+          // O foco automático só vale quando a pessoa acabou de abrir pela
+          // lupa; no desktop roubaria o foco ao entrar no projeto.
+          autoFocus={aberta}
+          wrapClassName="w-full"
+          rightSlot={
+            queryDraft ? (
+              <button
+                type="button"
+                onClick={() => setQueryDraft("")}
+                aria-label="Limpar pesquisa"
+                className="rounded-sm p-1.5 text-ink-faint transition-colors hover:bg-surface-sunken hover:text-ink-soft"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : undefined
+          }
+        />
+      </div>
+
+      {(activeCount > 0 || filters.query) && (
+        <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto">
+          <span className="text-[12.5px] text-ink-muted">
+            {resultCount} de {totalCount} tarefas
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setQueryDraft("");
+              setAberta(false);
+              onChange(EMPTY_FILTERS);
+            }}
+          >
+            Limpar
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
+export interface BoardFiltersButtonProps {
+  filters: BoardFilters;
+  onChange: (filters: BoardFilters) => void;
+  members: BoardUser[];
+  labels: BoardLabel[];
+}
+
+/**
+ * Filtros do quadro. No celular o botão fica só com o funil — a palavra
+ * "Filtros" custa metade da linha num telefone, e o número de filtros ativos
+ * já aparece na bolinha.
+ */
+export function BoardFiltersButton({
+  filters,
+  onChange,
+  members,
+  labels,
+}: BoardFiltersButtonProps) {
+  const activeCount = countActiveFilters(filters);
+
+  return (
+    <Dropdown
+      width={248}
         trigger={({ ref, onClick, open, ...aria }) => (
           <Button
             ref={ref}
             onClick={onClick}
             {...aria}
             variant={activeCount > 0 || open ? "subtle" : "secondary"}
-            leftIcon={<Filter className="size-4" />}
+            aria-label="Filtros"
+            className="px-2.5 sm:px-3.5"
           >
-            Filtros
+            <Filter className="size-4 shrink-0" />
+            <span className="hidden sm:inline">Filtros</span>
             {activeCount > 0 && (
-              <span className="ml-0.5 rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">
+              <span className="rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">
                 {activeCount}
               </span>
             )}
@@ -254,24 +321,5 @@ export function BoardToolbar({
           </div>
         )}
       </Dropdown>
-
-      {(activeCount > 0 || filters.query) && (
-        <div className="flex items-center gap-2">
-          <span className="text-[12.5px] text-ink-muted">
-            {resultCount} de {totalCount} tarefas
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setQueryDraft("");
-              onChange(EMPTY_FILTERS);
-            }}
-          >
-            Limpar
-          </Button>
-        </div>
-      )}
-    </div>
   );
 }
