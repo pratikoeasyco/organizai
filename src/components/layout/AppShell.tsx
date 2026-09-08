@@ -17,7 +17,6 @@ import { Topbar, type Crumb } from "@/components/layout/Topbar";
 import { CompanyFormModal } from "@/components/companies/CompanyFormModal";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { NotificationPrompt } from "@/components/pwa/NotificationPrompt";
 import { ProjectFormModal } from "@/components/projects/ProjectFormModal";
 import { useLiveChanges } from "@/hooks/useLiveChanges";
@@ -228,9 +227,6 @@ export function AppShell({ user, companies, projects, children }: AppShellProps)
         </main>
       </div>
 
-      {/* Os dois nunca aparecem juntos: um só existe fora do app instalado, o
-          outro só dentro dele. */}
-      <InstallPrompt />
       <NotificationPrompt />
 
       <BottomNav
