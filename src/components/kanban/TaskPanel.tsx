@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   CheckSquare,
+  Columns3,
   Flag,
   Loader2,
   MessageSquare,
@@ -67,7 +68,8 @@ export function TaskPanel({ taskId, onClose }: TaskPanelProps) {
   const mounted = useMounted();
   const toast = useToast();
   const board = useBoard();
-  const { canEdit, members, labels, syncDetail, removeTaskLocal, addLabel } = board;
+  const { canEdit, columns, members, labels, moveTask, syncDetail, removeTaskLocal, addLabel } =
+    board;
 
   const [detail, setDetail] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,8 +81,36 @@ export function TaskPanel({ taskId, onClose }: TaskPanelProps) {
   const [savingField, setSavingField] = useState<string | null>(null);
   const [newChecklistItem, setNewChecklistItem] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
+  const [movendo, setMovendo] = useState(false);
 
   useLockBodyScroll(Boolean(taskId));
+
+  const colunaAtual = columns.find((column) => column.id === detail?.columnId) ?? null;
+
+  /**
+   * Move a tarefa para outra coluna sem arrastar.
+   *
+   * Vai para o fim da coluna de destino: é onde o card entraria se fosse
+   * arrastado até lá sem mirar em nada. A prioridade não muda — quem escolhe
+   * pelo menu está dizendo "mudou de etapa", não "mudou de prioridade", e a
+   * ordenação por prioridade coloca o card no bloco certo sozinha.
+   */
+  const moverPara = useCallback(
+    async (toColumnId: string) => {
+      if (!detail || toColumnId === detail.columnId) return;
+      const destino = columns.find((column) => column.id === toColumnId);
+      setMovendo(true);
+      try {
+        await moveTask(detail.id, toColumnId, destino?.tasks.length ?? 0);
+        // O painel guarda sua própria cópia do detalhe; sem isto o campo
+        // continuaria mostrando a coluna antiga até reabrir a tarefa.
+        setDetail({ ...detail, columnId: toColumnId });
+      } finally {
+        setMovendo(false);
+      }
+    },
+    [detail, columns, moveTask],
+  );
 
   const load = useCallback(
     async (id: string) => {
@@ -363,6 +393,68 @@ export function TaskPanel({ taskId, onClose }: TaskPanelProps) {
 
             {/* Campos */}
             <div className="mt-3 divide-y divide-line border-y border-line">
+              {/* Mover sem arrastar.
+                  Arrastar no celular nunca vai ser confortável — o dedo tapa a
+                  tela e a coluna de destino costuma estar fora dela. E arrastar
+                  é o único jeito hoje, o que deixa de fora quem usa teclado ou
+                  leitor de tela. Compromisso do calendário não tem coluna, por
+                  isso a linha some para ele. */}
+              {detail.kind === "TASK" && columns.length > 1 && (
+                <FieldRow icon={<Columns3 />} label="Coluna">
+                  <Dropdown
+                    width={230}
+                    align="start"
+                    trigger={({ ref, onClick, open, ...aria }) => (
+                      <button
+                        ref={ref}
+                        onClick={onClick}
+                        {...aria}
+                        disabled={!canEdit || movendo}
+                        data-open={open}
+                        className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13.5px] transition-colors hover:bg-surface-sunken disabled:pointer-events-none"
+                      >
+                        {movendo ? (
+                          <Loader2 className="size-3.5 shrink-0 animate-spin text-ink-faint" />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            style={{ backgroundColor: colunaAtual?.color ?? "#94A3B8" }}
+                            className="size-2 shrink-0 rounded-full"
+                          />
+                        )}
+                        <span className="truncate text-ink">
+                          {colunaAtual?.name ?? "Sem coluna"}
+                        </span>
+                      </button>
+                    )}
+                  >
+                    {({ close }) => (
+                      <>
+                        {columns.map((column) => (
+                          <DropdownItem
+                            key={column.id}
+                            icon={
+                              <span
+                                aria-hidden="true"
+                                style={{ backgroundColor: column.color }}
+                                className="size-2 rounded-full"
+                              />
+                            }
+                            active={column.id === detail.columnId}
+                            onSelect={() => {
+                              close();
+                              void moverPara(column.id);
+                            }}
+                          >
+                            {column.name}
+                          </DropdownItem>
+                        ))}
+                      </>
+                    )}
+                  </Dropdown>
+                </FieldRow>
+              )}
+
               <FieldRow icon={<UserIcon />} label="Responsável">
                 <Dropdown
                   width={230}
