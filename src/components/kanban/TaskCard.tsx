@@ -77,7 +77,20 @@ function TaskCardBase({ task, onOpen, draggable, done }: TaskCardProps) {
   return (
     <article
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        // `manipulation` mantém a rolagem funcionando com um toque normal e só
+        // libera o arraste depois do toque longo — se fosse `none`, a coluna
+        // deixaria de rolar no celular.
+        touchAction: "manipulation",
+        // No iOS, segurar o dedo abre a lupa e o menu de copiar, e isso mata o
+        // arraste no meio. Estas duas linhas desligam esse comportamento só
+        // dentro do card.
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+        userSelect: "none",
+      }}
       {...attributes}
       {...listeners}
       onClick={() => onOpen(task.id)}

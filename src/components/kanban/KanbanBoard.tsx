@@ -5,7 +5,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -25,6 +26,7 @@ import { TaskCardPreview } from "@/components/kanban/TaskCard";
 import { DeleteColumnDialog } from "@/components/kanban/DeleteColumnDialog";
 import { AddColumnButton } from "@/components/kanban/AddColumnButton";
 import { matchesFilters } from "@/lib/board-filters";
+import { priorityAtDrop } from "@/lib/utils/board-order";
 import type { BoardColumnData, BoardTask } from "@/types/domain";
 import type { BoardFilters } from "@/components/kanban/BoardToolbar";
 
@@ -81,8 +83,21 @@ export function KanbanBoard({ filters, onOpenTask, onRequestCreateTask }: Kanban
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [columnToDelete, setColumnToDelete] = useState<BoardColumnData | null>(null);
 
+  /**
+   * Mouse e toque precisam de sensores separados.
+   *
+   * Com um PointerSensor único, no celular o navegador tratava o gesto como
+   * rolagem e cancelava o arraste antes de começar — arrastar simplesmente não
+   * funcionava. Impedir a rolagem no card (`touch-action: none`) resolveria o
+   * arraste e quebraria a rolagem da coluna e do quadro, que é pior.
+   *
+   * A saída é o toque longo: por 220ms o gesto ainda é rolagem; passando disso,
+   * vira arraste e o dnd-kit assume o controle. `tolerance` permite o tremor
+   * natural do dedo sem cancelar.
+   */
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -216,13 +231,25 @@ export function KanbanBoard({ filters, onOpenTask, onRequestCreateTask }: Kanban
 
       setPreview(null);
 
+      const finalIndex = Math.max(toIndex, 0);
+
+      // Onde o card foi solto define a prioridade dele: a coluna é ordenada por
+      // prioridade, então parar entre dois urgentes só pode significar que este
+      // também é urgente. Sem isto o card voltaria sozinho para o bloco antigo.
+      const destino = current.find((column) => column.id === toColumnId);
+      const movedTask = current.flatMap((c) => c.tasks).find((t) => t.id === activeId);
+      const novaPrioridade =
+        destino && movedTask
+          ? priorityAtDrop(destino.tasks, finalIndex, movedTask.priority, toColumnId === doneColumnId)
+          : null;
+
       const unchanged =
         original?.id === toColumnId && originalIndex === toIndex && originalIndex !== -1;
-      if (unchanged) return;
+      if (unchanged && !novaPrioridade) return;
 
-      void moveTask(activeId, toColumnId, Math.max(toIndex, 0));
+      void moveTask(activeId, toColumnId, finalIndex, novaPrioridade ?? undefined);
     },
-    [columns, preview, moveTask, reorderColumns],
+    [columns, preview, moveTask, reorderColumns, doneColumnId],
   );
 
   const handleDragCancel = useCallback(() => {

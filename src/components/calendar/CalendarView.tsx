@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useDroppable,
   useSensor,
@@ -147,7 +148,13 @@ export function CalendarView({ filters, onOpenTask, onCreateOnDay }: CalendarVie
   const [openDay, setOpenDay] = useState<Date | null>(null);
   const [dragging, setDragging] = useState<CalendarEvent | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // Mesmo motivo do quadro: com um PointerSensor único, no celular o navegador
+  // tratava o gesto como rolagem e o arraste nunca começava. O toque longo
+  // separa as duas intenções sem sacrificar a rolagem do mês.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+  );
 
   // O calendário lê apenas os compromissos. Tarefas do quadro nunca aparecem
   // aqui — são conjuntos separados de propósito.

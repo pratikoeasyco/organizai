@@ -71,7 +71,12 @@ interface BoardContextValue {
 
   // --- Tarefas (quadro) ---
   createTask: (columnId: string, input: NewTaskInput) => Promise<boolean>;
-  moveTask: (taskId: string, toColumnId: string, toIndex: number) => Promise<void>;
+  moveTask: (
+    taskId: string,
+    toColumnId: string,
+    toIndex: number,
+    priority?: Priority,
+  ) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   removeTaskLocal: (taskId: string) => void;
 
@@ -312,7 +317,7 @@ export function BoardProvider({
   );
 
   const moveTask = useCallback(
-    async (taskId: string, toColumnId: string, toIndex: number) => {
+    async (taskId: string, toColumnId: string, toIndex: number, priority?: Priority) => {
       let movedToOtherColumn = false;
       let targetName = "";
 
@@ -328,7 +333,13 @@ export function BoardProvider({
           return stripped.map((column) => {
             if (column.id !== toColumnId) return column;
             const tasks = [...column.tasks];
-            tasks.splice(Math.min(toIndex, tasks.length), 0, { ...task, columnId: toColumnId });
+            tasks.splice(Math.min(toIndex, tasks.length), 0, {
+              ...task,
+              columnId: toColumnId,
+              // A prioridade nova entra já no otimista: é ela que decide onde o
+              // card fica depois que a coluna for reordenada.
+              ...(priority ? { priority } : {}),
+            });
             return { ...column, tasks };
           });
         },
@@ -337,6 +348,7 @@ export function BoardProvider({
             taskId,
             toColumnId,
             toIndex,
+            ...(priority ? { priority } : {}),
           });
           // A resposta traz quem moveu, para o rodapé do card ficar correto
           // sem depender de um novo carregamento.

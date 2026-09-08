@@ -11,6 +11,7 @@ import { logActivity } from "@/server/services/activity";
 import { notify } from "@/server/services/notifications";
 import { emitChange, type ChangeType } from "@/server/events/bus";
 import { formatTimeRange, getFirstName } from "@/lib/utils/format";
+import { sortColumnTasks } from "@/lib/utils/board-order";
 import type {
   BoardColumnData,
   BoardData,
@@ -98,12 +99,20 @@ export async function getBoard(userId: string, projectId: string): Promise<Board
 
   // Compromissos não têm coluna, então nunca caem em `column.tasks`: quadro e
   // calendário ficam separados pela própria estrutura, não por um filtro.
-  const columns: BoardColumnData[] = project.columns.map((column) => ({
+  const columns: BoardColumnData[] = project.columns.map((column, index) => ({
     id: column.id,
     name: column.name,
     color: column.color,
     position: column.position,
-    tasks: column.tasks.map((task) => toBoardTask({ ...task, columnId: column.id })),
+    // A ordem exibida não é a coluna `position` crua: urgente sobe. Ordenar
+    // aqui, e não no banco, mantém a regra num lugar só — a mesma função roda
+    // no navegador durante o arraste.
+    tasks: sortColumnTasks(
+      column.tasks.map((task) => toBoardTask({ ...task, columnId: column.id })),
+      // Com uma coluna só, ela não conta como "concluído": o quadro inteiro
+      // pareceria finalizado. Mesma regra do KanbanBoard e do dashboard.
+      project.columns.length > 1 && index === project.columns.length - 1,
+    ),
   }));
 
   const [events, mute] = await Promise.all([
@@ -652,7 +661,7 @@ export async function updateTask(
  */
 export async function moveTask(
   userId: string,
-  input: { taskId: string; toColumnId: string; toIndex: number },
+  input: { taskId: string; toColumnId: string; toIndex: number; priority?: Priority },
 ): Promise<BoardTask> {
   const task = await prisma.task.findUnique({
     where: { id: input.taskId },
@@ -698,6 +707,10 @@ export async function moveTask(
                 columnId: input.toColumnId,
                 lastMovedById: userId,
                 lastMovedAt: new Date(),
+                // Soltar o card dentro de outro bloco de prioridade é a forma
+                // de repriorizar arrastando. Sem isto ele voltaria ao bloco de
+                // origem assim que a lista fosse reordenada.
+                ...(input.priority ? { priority: input.priority } : {}),
               }
             : {}),
         },

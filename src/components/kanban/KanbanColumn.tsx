@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,7 +11,21 @@ import { withAlpha } from "@/lib/utils/colors";
 import { ColumnMenu } from "@/components/kanban/ColumnMenu";
 import { TaskCard } from "@/components/kanban/TaskCard";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { PRIORITY_META } from "@/types/domain";
 import type { BoardColumnData, BoardTask } from "@/types/domain";
+
+/**
+ * A divisória aparece no primeiro card de cada bloco de prioridade — e só
+ * quando a coluna tem mais de uma prioridade, senão vira ruído repetindo o
+ * óbvio. Na coluna de concluído não aparece: ali a prioridade não vale mais.
+ */
+function mostrarDivisoria(tasks: BoardTask[], index: number, isDoneColumn: boolean): boolean {
+  if (isDoneColumn) return false;
+  if (tasks.length < 2) return false;
+  const variasPrioridades = tasks.some((t) => t.priority !== tasks[0].priority);
+  if (!variasPrioridades) return false;
+  return index === 0 || tasks[index - 1].priority !== tasks[index].priority;
+}
 
 export interface KanbanColumnProps {
   column: BoardColumnData;
@@ -77,7 +91,10 @@ export function KanbanColumn({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       aria-label={`Coluna ${column.name}`}
       className={cn(
-        "flex h-full w-[292px] shrink-0 flex-col rounded-xl border bg-surface-muted",
+        // No celular a coluna não ocupa a tela toda de propósito: a próxima fica
+        // espiando na borda. Sem esse pedaço visível não há para onde arrastar,
+        // porque o destino está fora da tela.
+        "flex h-full w-[84vw] max-w-[292px] shrink-0 flex-col rounded-xl border bg-surface-muted sm:w-[292px]",
         isDragging ? "border-brand-300 opacity-50" : "border-line",
         isOver && !isDragging && "border-brand-400 bg-brand-50/40",
       )}
@@ -167,14 +184,34 @@ export function KanbanColumn({
         className="min-h-[60px] flex-1 space-y-2 overflow-y-auto scrollbar-slim px-2.5 py-2.5"
       >
         <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onOpen={onOpenTask}
-              draggable={canEdit}
-              done={isDoneColumn}
-            />
+          {tasks.map((task, index) => (
+            <Fragment key={task.id}>
+              {mostrarDivisoria(tasks, index, isDoneColumn) && (
+                // Explica por que o card parou aqui: a coluna é ordenada por
+                // prioridade, e sem esta linha o card "pulando" de lugar ao ser
+                // solto pareceria defeito em vez de regra.
+                <p
+                  className={cn(
+                    "flex items-center gap-1.5 px-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-wide",
+                    PRIORITY_META[task.priority].text,
+                    index > 0 && "mt-1",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-1.5 rounded-full"
+                    style={{ backgroundColor: PRIORITY_META[task.priority].dot }}
+                  />
+                  {PRIORITY_META[task.priority].label}
+                </p>
+              )}
+              <TaskCard
+                task={task}
+                onOpen={onOpenTask}
+                draggable={canEdit}
+                done={isDoneColumn}
+              />
+            </Fragment>
           ))}
         </SortableContext>
 

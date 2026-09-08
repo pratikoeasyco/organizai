@@ -363,6 +363,13 @@ export const moveTaskSchema = z.object({
   taskId: cuid,
   toColumnId: cuid,
   toIndex: z.number().int().min(0).max(10000),
+  /**
+   * Prioridade que o card assume por ter sido solto ali. A coluna é ordenada
+   * por prioridade, então soltar entre dois urgentes significa "isto também é
+   * urgente" — sem isto o card voltaria sozinho para o bloco de origem.
+   * Ausente quando o arraste não muda a prioridade.
+   */
+  priority: z.enum(PRIORITIES).optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,14 @@ export function CalendarChip({ task, done, canEdit, onOpen, onToggleDone }: Cale
   return (
     <div
       ref={setNodeRef}
+      style={{
+        // Mesmas defesas do card do quadro: mantém a rolagem com toque normal,
+        // e no iOS impede que segurar o dedo abra a lupa e mate o arraste.
+        touchAction: "manipulation",
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+        userSelect: "none",
+      }}
       {...attributes}
       {...listeners}
       role="button"
