@@ -661,7 +661,7 @@ export async function updateTask(
  */
 export async function moveTask(
   userId: string,
-  input: { taskId: string; toColumnId: string; toIndex: number; priority?: Priority },
+  input: { taskId: string; toColumnId: string; toIndex: number },
 ): Promise<BoardTask> {
   const task = await prisma.task.findUnique({
     where: { id: input.taskId },
@@ -707,10 +707,6 @@ export async function moveTask(
                 columnId: input.toColumnId,
                 lastMovedById: userId,
                 lastMovedAt: new Date(),
-                // Soltar o card dentro de outro bloco de prioridade é a forma
-                // de repriorizar arrastando. Sem isto ele voltaria ao bloco de
-                // origem assim que a lista fosse reordenada.
-                ...(input.priority ? { priority: input.priority } : {}),
               }
             : {}),
         },

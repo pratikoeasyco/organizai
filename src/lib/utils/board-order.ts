@@ -56,34 +56,31 @@ function chegadaEm(task: OrderableTask): number {
 }
 
 /**
- * Que prioridade um card assume ao ser solto em `indice` de uma coluna.
+ * Onde o card PODE parar, dado que a coluna é ordenada por prioridade.
  *
- * É isto que dá sentido ao arraste: como a lista é ordenada por prioridade,
- * soltar entre dois cards urgentes só pode significar "isto também é urgente".
- * Sem esta regra o card voltaria sozinho para o seu bloco, o que parece defeito.
+ * Um card urgente não entra no meio das moderadas, nem uma baixa sobe para o
+ * meio das urgentes: a posição de destino é presa ao bloco da própria
+ * prioridade. Arrastar reordena entre iguais; mudar de prioridade é decisão
+ * deliberada, feita no campo Prioridade do painel da tarefa.
  *
- * Devolve null quando a prioridade não deve mudar: coluna de concluído, ou
- * quando o card foi solto dentro do próprio bloco.
+ * `tasks` é a lista da coluna de destino já ordenada e SEM o card arrastado.
+ * Na coluna de concluído não há bloco: a prioridade deixou de valer ali.
  */
-export function priorityAtDrop<T extends OrderableTask>(
+export function clampToPriorityBlock<T extends OrderableTask>(
   tasks: T[],
   indice: number,
-  atual: Priority,
+  priority: Priority,
   isDone: boolean,
-): Priority | null {
-  if (isDone) return null;
+): number {
+  if (isDone) return indice;
 
-  const vizinhos = tasks.filter((_, i) => i !== indice);
-  const anterior = vizinhos[indice - 1]?.priority;
-  const seguinte = vizinhos[indice]?.priority;
+  const meu = PRIORITY_META[priority].rank;
+  // Com a lista ordenada, tudo que é mais urgente vem antes do bloco e tudo que
+  // é menos urgente vem depois — então as bordas são só duas contagens.
+  const inicio = tasks.filter((t) => PRIORITY_META[t.priority].rank > meu).length;
+  const fim = inicio + tasks.filter((t) => PRIORITY_META[t.priority].rank === meu).length;
 
-  // Entre dois cards da mesma prioridade, ou encostado em um só: assume a dele.
-  const alvo = anterior && seguinte
-    ? PRIORITY_META[anterior].rank >= PRIORITY_META[seguinte].rank
-      ? anterior
-      : seguinte
-    : (anterior ?? seguinte);
-
-  if (!alvo || alvo === atual) return null;
-  return alvo;
+  if (indice < inicio) return inicio;
+  if (indice > fim) return fim;
+  return indice;
 }

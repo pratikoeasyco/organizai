@@ -21,12 +21,14 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { useBoard } from "@/components/kanban/BoardProvider";
+import { useToast } from "@/components/ui/Toast";
 import { KanbanColumn } from "@/components/kanban/KanbanColumn";
 import { TaskCardPreview } from "@/components/kanban/TaskCard";
 import { DeleteColumnDialog } from "@/components/kanban/DeleteColumnDialog";
 import { AddColumnButton } from "@/components/kanban/AddColumnButton";
 import { matchesFilters } from "@/lib/board-filters";
-import { priorityAtDrop, sortColumnTasks } from "@/lib/utils/board-order";
+import { clampToPriorityBlock, sortColumnTasks } from "@/lib/utils/board-order";
+import { PRIORITY_META } from "@/types/domain";
 import type { BoardColumnData, BoardTask } from "@/types/domain";
 import type { BoardFilters } from "@/components/kanban/BoardToolbar";
 
@@ -78,6 +80,7 @@ export function KanbanBoard({ filters, onOpenTask, onRequestCreateTask }: Kanban
 
   // Enquanto arrasta, o quadro renderiza esta cópia — permite mostrar o card já
   // encaixado na coluna de destino antes de soltar.
+  const toast = useToast();
   const [preview, setPreview] = useState<BoardColumnData[] | null>(null);
   const [activeTask, setActiveTask] = useState<BoardTask | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
@@ -160,35 +163,62 @@ export function KanbanBoard({ filters, onOpenTask, onRequestCreateTask }: Kanban
     [columns],
   );
 
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over || active.data.current?.type !== "task") return;
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event;
+      if (!over || active.data.current?.type !== "task") return;
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
+      const activeId = String(active.id);
+      const overId = String(over.id);
 
-    setPreview((current) => {
-      if (!current) return current;
+      setPreview((current) => {
+        if (!current) return current;
 
-      const from = findColumnByTask(current, activeId);
-      if (!from) return current;
+        const from = findColumnByTask(current, activeId);
+        if (!from) return current;
 
-      // Soltou sobre a área vazia de uma coluna.
-      if (overId.startsWith("column-drop-")) {
-        const toColumnId = overId.replace("column-drop-", "");
-        if (from.id === toColumnId) return current;
-        const target = current.find((column) => column.id === toColumnId);
-        return relocate(current, activeId, toColumnId, target?.tasks.length ?? 0);
-      }
+        const arrastado = from.tasks.find((task) => task.id === activeId);
 
-      // Soltou sobre outro card.
-      const overColumn = findColumnByTask(current, overId);
-      if (!overColumn || overColumn.id === from.id) return current;
+        /** O preview mostra o card já no bloco onde ele de fato vai parar. */
+        const posicaoPermitida = (coluna: BoardColumnData, indice: number) => {
+          if (!arrastado) return indice;
+          return clampToPriorityBlock(
+            coluna.tasks.filter((task) => task.id !== activeId),
+            indice,
+            arrastado.priority,
+            coluna.id === doneColumnId,
+          );
+        };
 
-      const overIndex = overColumn.tasks.findIndex((task) => task.id === overId);
-      return relocate(current, activeId, overColumn.id, Math.max(overIndex, 0));
-    });
-  }, []);
+        // Soltou sobre a área vazia de uma coluna.
+        if (overId.startsWith("column-drop-")) {
+          const toColumnId = overId.replace("column-drop-", "");
+          if (from.id === toColumnId) return current;
+          const target = current.find((column) => column.id === toColumnId);
+          if (!target) return current;
+          return relocate(
+            current,
+            activeId,
+            toColumnId,
+            posicaoPermitida(target, target.tasks.length),
+          );
+        }
+
+        // Soltou sobre outro card.
+        const overColumn = findColumnByTask(current, overId);
+        if (!overColumn || overColumn.id === from.id) return current;
+
+        const overIndex = overColumn.tasks.findIndex((task) => task.id === overId);
+        return relocate(
+          current,
+          activeId,
+          overColumn.id,
+          posicaoPermitida(overColumn, Math.max(overIndex, 0)),
+        );
+      });
+    },
+    [doneColumnId],
+  );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -250,25 +280,47 @@ export function KanbanBoard({ filters, onOpenTask, onRequestCreateTask }: Kanban
 
       setPreview(null);
 
-      const finalIndex = Math.max(toIndex, 0);
+      const pedido = Math.max(toIndex, 0);
 
-      // Onde o card foi solto define a prioridade dele: a coluna é ordenada por
-      // prioridade, então parar entre dois urgentes só pode significar que este
-      // também é urgente. Sem isto o card voltaria sozinho para o bloco antigo.
+      /**
+       * O card não entra em bloco de outra prioridade.
+       *
+       * A coluna é ordenada por prioridade, então soltar uma moderada no meio
+       * das urgentes só criaria uma ordem que a próxima renderização desfaria.
+       * Em vez de aceitar e corrigir depois, a posição é presa ao bloco certo —
+       * e o aviso explica, porque um card que "não vai" onde foi solto precisa
+       * dizer o motivo.
+       *
+       * Mudar de prioridade continua possível: no campo Prioridade do painel.
+       */
       const destino = current.find((column) => column.id === toColumnId);
       const movedTask = current.flatMap((c) => c.tasks).find((t) => t.id === activeId);
-      const novaPrioridade =
-        destino && movedTask
-          ? priorityAtDrop(destino.tasks, finalIndex, movedTask.priority, toColumnId === doneColumnId)
-          : null;
+
+      let finalIndex = pedido;
+      if (destino && movedTask) {
+        const semEle = destino.tasks.filter((t) => t.id !== activeId);
+        finalIndex = clampToPriorityBlock(
+          semEle,
+          pedido,
+          movedTask.priority,
+          toColumnId === doneColumnId,
+        );
+
+        if (finalIndex !== pedido) {
+          toast.info(
+            `Esta tarefa fica entre as de prioridade ${PRIORITY_META[movedTask.priority].label.toLowerCase()}.`,
+            "Para mudar isso, abra a tarefa e use o campo Prioridade.",
+          );
+        }
+      }
 
       const unchanged =
-        original?.id === toColumnId && originalIndex === toIndex && originalIndex !== -1;
-      if (unchanged && !novaPrioridade) return;
+        original?.id === toColumnId && originalIndex === finalIndex && originalIndex !== -1;
+      if (unchanged) return;
 
-      void moveTask(activeId, toColumnId, finalIndex, novaPrioridade ?? undefined);
+      void moveTask(activeId, toColumnId, finalIndex);
     },
-    [columns, preview, moveTask, reorderColumns, doneColumnId],
+    [columns, preview, moveTask, reorderColumns, doneColumnId, toast],
   );
 
   const handleDragCancel = useCallback(() => {
