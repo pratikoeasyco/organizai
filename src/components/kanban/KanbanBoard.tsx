@@ -26,7 +26,7 @@ import { TaskCardPreview } from "@/components/kanban/TaskCard";
 import { DeleteColumnDialog } from "@/components/kanban/DeleteColumnDialog";
 import { AddColumnButton } from "@/components/kanban/AddColumnButton";
 import { matchesFilters } from "@/lib/board-filters";
-import { priorityAtDrop } from "@/lib/utils/board-order";
+import { priorityAtDrop, sortColumnTasks } from "@/lib/utils/board-order";
 import type { BoardColumnData, BoardTask } from "@/types/domain";
 import type { BoardFilters } from "@/components/kanban/BoardToolbar";
 
@@ -101,7 +101,26 @@ export function KanbanBoard({ filters, onOpenTask, onRequestCreateTask }: Kanban
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const view = preview ?? columns;
+  /**
+   * A ordem exibida.
+   *
+   * O servidor manda cada coluna já ordenada, mas o quadro muda sozinho depois
+   * disso: criar uma tarefa, trocar a prioridade no painel ou receber a
+   * alteração de outra pessoa mexem na lista sem passar pelo servidor de novo.
+   * Sem reordenar aqui, o card ficava onde entrou até alguém recarregar a
+   * página — era possível ver uma Moderada acima de uma Urgente.
+   *
+   * Durante o arraste vale o `preview`: ali a ordem é a que a pessoa está
+   * construindo com o dedo, e reordenar no meio do gesto puxaria o card da
+   * mão. A prioridade nova é aplicada ao soltar, e a ordem se acerta em seguida.
+   */
+  const view = useMemo(() => {
+    if (preview) return preview;
+    return columns.map((column, index) => ({
+      ...column,
+      tasks: sortColumnTasks(column.tasks, columns.length > 1 && index === columns.length - 1),
+    }));
+  }, [preview, columns]);
 
   /**
    * Com uma única coluna não faz sentido tratá-la como "concluído" — todo o
